@@ -150,28 +150,42 @@ Backbone.Validation = (function(_){
           var model = this,
               validateAll = !attrs,
               opt = _.extend({}, options, setOptions),
+              notify = opt.notify || {},
               allAttrs = _.extend(getValidatedAttrs(model), model.attributes, attrs),
               changedAttrs = attrs || allAttrs,
               result = validateModel(model, allAttrs);
 
           model._isValid = result.isValid;
 
+          var updateViews = function(valid, attr, msg, selector){
+            var
+              aliases = notify[attr],
+              attributes = aliases ?
+                [attr].concat( _.isArray(aliases) ? aliases : [ aliases ] ) :
+                [attr];
+
+            _.each(_views, function(view){
+              _.each(attributes, function(a){
+                if (valid){
+                  opt.valid(view, a, selector);
+                }
+                else {
+                  opt.invalid(view, a, msg, selector );
+                }
+              });
+            });
+          };
+
           // After validation is performed, loop through all changed attributes
-          // and call either the valid or invalid callback so the view is updated.
+          // and call either the valid or invalid callback so the views are updated.
           for(var attr in allAttrs) {
             var invalid = result.invalidAttrs.hasOwnProperty(attr),
                 changed = changedAttrs.hasOwnProperty(attr);
             if(invalid && (changed || validateAll)){
-              /*jshint loopfunc:true*/
-              _.each(_views, function(view){
-                opt.invalid(view, attr, result.invalidAttrs[attr], opt.selector);
-              });
+              updateViews(false, attr, result.invalidAttrs[attr], opt.selector);
             }
             if(!invalid){
-              _.each(_views, function(view){
-                opt.valid(view, attr, opt.selector);
-              });
-              /*jshint loopfunc:false*/
+              updateViews(true, attr, null, opt.selector);
             }
           }
 
