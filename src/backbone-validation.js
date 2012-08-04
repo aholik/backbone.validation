@@ -209,6 +209,7 @@ Backbone.Validation = (function(_){
 
     // Removes the methods added to a model
     var unbindModel = function(model) {
+      delete _mixins[model.cid];
       delete model._attachView;
       delete model.validate;
       delete model.preValidate;
