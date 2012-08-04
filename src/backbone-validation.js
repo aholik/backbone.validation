@@ -106,7 +106,15 @@ Backbone.Validation = (function(_){
 
     // Contains the methods that are mixed in on the model when binding
     var mixin = function(view, options) {
+      var _views = [];
+
       return {
+        _attachView: function(view){
+          if(_.any(_views, function(v){ return v.cid === view.cid; })){
+            throw new Error('View has already been bound to this model');
+          }
+          _views.push(view);
+        },
 
         // Check whether or not a value passes validation
         // without updating the model
@@ -154,10 +162,16 @@ Backbone.Validation = (function(_){
             var invalid = result.invalidAttrs.hasOwnProperty(attr),
                 changed = changedAttrs.hasOwnProperty(attr);
             if(invalid && (changed || validateAll)){
-              opt.invalid(view, attr, result.invalidAttrs[attr], opt.selector);
+              /*jshint loopfunc:true*/
+              _.each(_views, function(view){
+                opt.invalid(view, attr, result.invalidAttrs[attr], opt.selector);
+              });
             }
             if(!invalid){
-              opt.valid(view, attr, opt.selector);
+              _.each(_views, function(view){
+                opt.valid(view, attr, opt.selector);
+              });
+              /*jshint loopfunc:false*/
             }
           }
 
@@ -179,13 +193,23 @@ Backbone.Validation = (function(_){
       };
     };
 
+    var _mixins = { };
+
     // Helper to mix in validation on a model
     var bindModel = function(view, model, options) {
-      _.extend(model, mixin(view, options));
+      var
+        cid = model.cid,
+        mix = _mixins[cid];
+
+      if(!mix){
+        _mixins[cid] = (mix = _.extend(model, mixin(null, options)));
+      }
+      mix._attachView(view);
     };
 
     // Removes the methods added to a model
     var unbindModel = function(model) {
+      delete model._attachView;
       delete model.validate;
       delete model.preValidate;
       delete model.isValid;
